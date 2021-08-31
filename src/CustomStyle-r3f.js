@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
-import * as THREE from 'three'
-import { Canvas, useThree, useFrame, useLoader } from '@react-three/fiber'
-import MersenneTwist from 'mersenne-twister';
-import { TorusKnot } from '@react-three/drei';
-import Color from 'color';
-import { EffectComposer, Bloom } from '@react-three/postprocessing'
-import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader'
-
-
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+  Suspense,
+} from "react";
+import * as THREE from "three";
+import { Canvas, useThree, useFrame, useLoader } from "@react-three/fiber";
+import MersenneTwist from "mersenne-twister";
+import { TorusKnot } from "@react-three/drei";
+import Color from "color";
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader";
 
 /*
 Create your Custom style to be turned into a EthBlock.art BlockStyle NFT
@@ -35,51 +40,110 @@ Getting started:
 
 // Required style metadata
 const styleMetadata = {
-  name: '',
-  description: '',
-  image: '',
-  creator_name: '',
+  name: "",
+  description: "",
+  image: "",
+  creator_name: "",
   options: {
     mod1: 0.4,
     mod2: 0.1,
     mod3: 0.4,
-    color1: '#fff000',
-    background: '#000000',
+    color1: "#fff000",
+    background: "#000000",
   },
 };
 
 export { styleMetadata };
 
+// Children Geometry
+function Curve() {
+  const { camera, gl } = useThree();
+  const ref = useRef();
 
+  // Create Points for the Bezier Curve
+  // Vectors are explicit with no SVG source
+  const curveVector = useMemo(
+    () =>
+      new THREE.CubicBezierCurve3(
+        new THREE.Vector3(-0.5, 0, 0),
+        new THREE.Vector3(-0.5, 0, 0),
+        new THREE.Vector3(0.5, 0.5, 0),
+        new THREE.Vector3(0.5, 0, 0)
+      ),
+    []
+  );
+  const curvePoints = curveVector.getPoints(50);
+  const onCurveUpdate = useCallback(
+    (self) => self.setFromPoints(curvePoints),
+    [curvePoints]
+  );
+  console.log(curvePoints);
 
-function Triangle({ color, ...props }) {
-  const ref = useRef()
-  const [r] = useState(() => Math.random() * 10000)
-  useFrame((_) => (ref.current.position.y = -1.75 + Math.sin(_.clock.elapsedTime + r) / 10))
-  const { paths: [path] } = useLoader(SVGLoader, '/triangle.svg') // prettier-ignore
-  const geom = useMemo(() => SVGLoader.pointsToStroke(path.subPaths[0].getPoints(), path.userData.style), [])
+  return (
+    <>
+      {/* (CURVE MESH, AND MATERIAL) */}
+      <line position={[0, 0, 0]} ref={ref}>
+        <bufferGeometry attach="geometry" onUpdate={onCurveUpdate} />
+        <lineBasicMaterial
+          attach="material"
+          color={"yellow"}
+          linewidth={1}
+          linecap={"round"}
+          linejoin={"round"}
+        />
+      </line>
+    </>
+  );
+}
+
+// Children Geometry
+function Star({ color, ...props }) {
+  const ref = useRef();
+  const [r] = useState(() => Math.random() * 10000);
+
+  // animates the bouncing effect
+  useFrame(
+    (_) =>
+      (ref.current.position.y = -1.75 + Math.sin(_.clock.elapsedTime + r) / 10)
+  );
+  const { paths: [path] } = useLoader(SVGLoader, '/obtuse_heptagram.svg') // prettier-ignore
+  const geom = useMemo(
+    () =>
+      SVGLoader.pointsToStroke(
+        path.subPaths[0].getPoints(),
+        path.userData.style
+      ),
+    []
+  );
   return (
     <group ref={ref}>
       <mesh geometry={geom} {...props}>
         <meshBasicMaterial color={color} toneMapped={false} />
       </mesh>
     </group>
-  )
+  );
 }
 
+// Animates the camera based on the mouse position
+// Parent component to the children geometry (triangle, curve, etc)
 function Rig({ children }) {
-  const ref = useRef()
-  const vec = new THREE.Vector3()
-  const { camera, mouse } = useThree()
+  const ref = useRef();
+  const vec = new THREE.Vector3();
+  const { camera, mouse } = useThree();
   useFrame(() => {
-    camera.position.lerp(vec.set(mouse.x * 2, 0, 3.5), 0.05)
-    ref.current.position.lerp(vec.set(mouse.x * 1, mouse.y * 0.1, 0), 0.1)
-    ref.current.rotation.y = THREE.MathUtils.lerp(ref.current.rotation.y, (-mouse.x * Math.PI) / 20, 0.1)
-  })
-  return <group ref={ref}>{children}</group>
+    camera.position.lerp(vec.set(mouse.x * 2, 0, 3.5), 0.05);
+    ref.current.position.lerp(vec.set(mouse.x * 1, mouse.y * 0.1, 0), 0.1);
+    ref.current.rotation.y = THREE.MathUtils.lerp(
+      ref.current.rotation.y,
+      (-mouse.x * Math.PI) / 20,
+      0.1
+    );
+  });
+  return <group ref={ref}>{children}</group>;
 }
 
-
+// EthBlock Parent component to Children Rig
+// defines the mod variables passed down to the Rig component
 function Inner({
   block,
   attributesRef,
@@ -87,8 +151,8 @@ function Inner({
   mod1 = 0.75, // Example: replace any number in the code with mod1, mod2, or color values
   mod2 = 0.25,
   mod3 = 0.4,
-  color1 = '#4f83f1',
-  background = '#ccc',
+  color1 = "#4f83f1",
+  background = "#ccc",
 }) {
   console.log(`rendering`);
 
@@ -107,7 +171,7 @@ function Inner({
 
   // Update custom attributes related to style when the modifiers change
   useEffect(() => {
-    console.log('updating attributes...');
+    console.log("updating attributes...");
     attributesRef.current = () => {
       return {
         // This is called when the final image is generated, when creator opens the Mint NFT modal.
@@ -117,14 +181,14 @@ function Inner({
 
         attributes: [
           {
-            display_type: 'number',
-            trait_type: 'your trait here number',
+            display_type: "number",
+            trait_type: "your trait here number",
             value: hoistedValue.current, // using the hoisted value from within the draw() method, stored in the ref.
           },
 
           {
-            trait_type: 'your trait here text',
-            value: 'replace me',
+            trait_type: "your trait here text",
+            value: "replace me",
           },
         ],
       };
@@ -134,7 +198,7 @@ function Inner({
   // Handle correct scaling of scene as canvas is resized, and when generating upscaled version.
   useEffect(() => {
     console.log(`updating camera...`);
-    let DEFAULT_SIZE = 500;
+    let DEFAULT_SIZE = 1000;
     let DIM = Math.min(width, height);
     let M = DIM / DEFAULT_SIZE;
     camera.zoom = M * 200;
@@ -172,18 +236,45 @@ function Inner({
   // Render the scene
   return (
     <>
-    <color attach="background" args={['black']} />
+      <color attach="background" args={["black"]} />
       <ambientLight />
       <Suspense fallback={null}>
         <Rig>
-          <Triangle color="#ff2060" scale={0.009} rotation={[0, 0, Math.PI / 3]} />
-          <Triangle color="cyan" scale={0.009} position={[2, 0, -2]} rotation={[0, 0, Math.PI / 3]} />
-          <Triangle color="orange" scale={0.009} position={[-2, 0, -2]} rotation={[0, 0, Math.PI / 3]} />
-          <Triangle color="white" scale={0.009} position={[0, 2, -10]} rotation={[0, 0, Math.PI / 3]} />
+          <Star color="#ff2060" scale={0.002} rotation={[0, 0, Math.PI / 3]} />
+          <Star
+            color="cyan"
+            scale={0.002}
+            position={[2, 0, -2]}
+            rotation={[0, 0, Math.PI / 3]}
+          />
+          <Star
+            color="orange"
+            scale={0.002}
+            position={[-2, 0, -2]}
+            rotation={[0, 0, Math.PI / 3]}
+          />
+          <Star
+            color="white"
+            scale={0.002}
+            position={[0, 2, -10]}
+            rotation={[0, 0, Math.PI / 3]}
+          />
+
+          <Curve />
         </Rig>
         <EffectComposer multisampling={8}>
-          <Bloom kernelSize={3} luminanceThreshold={0} luminanceSmoothing={0.4} intensity={0.6} />
-          <Bloom kernelSize={3} luminanceThreshold={0} luminanceSmoothing={0} intensity={0.5} />
+          <Bloom
+            kernelSize={3}
+            luminanceThreshold={0}
+            luminanceSmoothing={0.4}
+            intensity={0.6}
+          />
+          <Bloom
+            kernelSize={3}
+            luminanceThreshold={0}
+            luminanceSmoothing={0}
+            intensity={0.5}
+          />
         </EffectComposer>
       </Suspense>
     </>
@@ -212,8 +303,8 @@ const Outer = React.memo(({ gl, background, ...props }) => {
       }}
       pixelRatio={window.devicePixelRatio}
       sx={{
-        width: '100%',
-        height: '100%',
+        width: "100%",
+        height: "100%",
       }}
     >
       <Inner {...props} canvasRef={gl} background={background} />
