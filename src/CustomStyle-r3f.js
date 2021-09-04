@@ -56,47 +56,6 @@ const styleMetadata = {
 export { styleMetadata };
 
 // Children Geometry
-function Curve() {
-  const { camera, gl } = useThree();
-  const ref = useRef();
-
-  // Create Points for the Bezier Curve
-  // Vectors are explicit with no SVG source
-  const curveVector = useMemo(
-    () =>
-      new THREE.CubicBezierCurve3(
-        new THREE.Vector3(-0.5, 0, 0),
-        new THREE.Vector3(-0.5, 0, 0),
-        new THREE.Vector3(0.5, 0.5, 0),
-        new THREE.Vector3(0.5, 0, 0)
-      ),
-    []
-  );
-  const curvePoints = curveVector.getPoints(50);
-  const onCurveUpdate = useCallback(
-    (self) => self.setFromPoints(curvePoints),
-    [curvePoints]
-  );
-  console.log(curvePoints);
-
-  return (
-    <>
-      {/* (CURVE MESH, AND MATERIAL) */}
-      <line position={[0, 0, 0]} ref={ref}>
-        <bufferGeometry attach="geometry" onUpdate={onCurveUpdate} />
-        <lineBasicMaterial
-          attach="material"
-          color={"yellow"}
-          linewidth={1}
-          linecap={"round"}
-          linejoin={"round"}
-        />
-      </line>
-    </>
-  );
-}
-
-// Children Geometry
 function Star({ color, ...props }) {
   const ref = useRef();
   const [r] = useState(() => Math.random() * 10000);
@@ -106,26 +65,39 @@ function Star({ color, ...props }) {
     (_) =>
       (ref.current.position.y = -1.75 + Math.sin(_.clock.elapsedTime + r) / 10)
   );
-  const { paths: [path] } = useLoader(SVGLoader, '/obtuse_heptagram.svg') // prettier-ignore
-  const geom = useMemo(
-    () =>
-      SVGLoader.pointsToStroke(
-        path.subPaths[0].getPoints(),
-        path.userData.style
-      ),
-    []
-  );
+
+  const points = [];
+  points.push(new THREE.Vector3(-0.1, 0, 0));
+  points.push(new THREE.Vector3(0.29, -0.25, 0));
+  points.push(new THREE.Vector3(-0.5, 0.5, 0));
+  points.push(new THREE.Vector3(-0.19, 0.35, 0));
+  points.push(new THREE.Vector3(0, 0, 0));
+  points.push(new THREE.Vector3(0.5, -0.5, 0));
+  points.push(new THREE.Vector3(0.75, 0.75, 0));
+  points.push(new THREE.Vector3(0.1, 0, 0));
+  points.push(new THREE.Vector3(-0.75, 0.79, 0));
+
+  const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+
+  const material = new THREE.LineBasicMaterial({
+    color: 0x0000ff,
+  });
+
   return (
     <group ref={ref}>
-      <mesh geometry={geom} {...props}>
-        <meshBasicMaterial color={color} toneMapped={false} />
-      </mesh>
+      <line geometry={lineGeometry} {...props}>
+        <lineBasicMaterial
+          attach="material"
+          color={"#9c88ff"}
+          linewidth={1000}
+          linecap={"round"}
+          linejoin={"round"}
+        />
+      </line>
     </group>
   );
 }
 
-// Animates the camera based on the mouse position
-// Parent component to the children geometry (triangle, curve, etc)
 function Rig({ children }) {
   const ref = useRef();
   const vec = new THREE.Vector3();
@@ -240,27 +212,24 @@ function Inner({
       <ambientLight />
       <Suspense fallback={null}>
         <Rig>
-          <Star color="#ff2060" scale={0.002} rotation={[0, 0, Math.PI / 3]} />
           <Star
             color="cyan"
-            scale={0.002}
+            scale={1}
             position={[2, 0, -2]}
             rotation={[0, 0, Math.PI / 3]}
           />
           <Star
             color="orange"
-            scale={0.002}
+            scale={1}
             position={[-2, 0, -2]}
             rotation={[0, 0, Math.PI / 3]}
           />
           <Star
             color="white"
-            scale={0.002}
+            scale={1}
             position={[0, 2, -10]}
             rotation={[0, 0, Math.PI / 3]}
           />
-
-          <Curve />
         </Rig>
         <EffectComposer multisampling={8}>
           <Bloom
